@@ -47,6 +47,11 @@ class Polynomial:
             res = res * x + coeff
         return res
 
+class Simplex:
+    def create_tableau():
+        t = [[],[]]
+        t_bool = np.full((2,2), True, dtype=bool)
+
 if __name__ == "__main__":
     A = Polynomial(6,4,5,0)
     print(A)
