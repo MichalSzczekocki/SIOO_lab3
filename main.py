@@ -47,10 +47,29 @@ class Polynomial:
             res = res * x + coeff
         return res
 
-class Simplex:
+class Tableau:
     def create_tableau():
         t = [[],[]]
         t_bool = np.full((2,2), True, dtype=bool)
+
+def Simplex(tableau):
+    m = len(tableau)
+    assert all([len(row) == m + 1 for row in A[1:]]), "Macierz nie jest kwadratowa!"
+    n = m + 1
+    for k in range(m):
+        pivots = [abs(A[i][k]) for i in range(k, m)]
+        i_max = pivots.index(max(pivots)) + k
+        
+        assert A[i_max][k] != 0, "Macierz osobliwa!"
+        
+        A[k], A[i_max] = A[i_max], A[k]
+
+        
+        for i in range(k + 1, m):
+            f = A[i][k] / A[k][k]
+            for j in range(k + 1, n):
+                A[i][j] -= A[k][j] * f
+            A[i][k] = 0
 
 if __name__ == "__main__":
     A = Polynomial(6,4,5,0)
