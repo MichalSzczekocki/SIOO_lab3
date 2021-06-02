@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QRadioBu
 from PyQt5.QtCore import Qt
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
+import heapq
 
 class Polynomial:
 
@@ -47,31 +49,96 @@ class Polynomial:
             res = res * x + coeff
         return res
 
-class Tableau:
-    def create_tableau():
-        t = [[],[]]
-        t_bool = np.full((2,2), True, dtype=bool)
+def repeatColumnNegative(Matrix, h):
+    """Repeat column h multiplied by - 1"""
+    (r, c) = Matrix.shape
+    Matrix = np.hstack((Matrix[:, 0:h-1], -Matrix[:, [h-1]], Matrix[:, h-1:c]))
+    return Matrix
 
-def Simplex(tableau):
-    m = len(tableau)
-    assert all([len(row) == m + 1 for row in A[1:]]), "Macierz nie jest kwadratowa!"
-    n = m + 1
-    for k in range(m):
-        pivots = [abs(A[i][k]) for i in range(k, m)]
-        i_max = pivots.index(max(pivots)) + k
-        
-        assert A[i_max][k] != 0, "Macierz osobliwa!"
-        
-        A[k], A[i_max] = A[i_max], A[k]
+def insertZeroToColumn(column, h):
+    """insert zero to column"""
+    k = np.size(column)
+    column = np.vstack((column[0:h-1, [0]], np.array([[0]]), column[h-1:k, [0]]))
+    return column
 
-        
-        for i in range(k + 1, m):
-            f = A[i][k] / A[k][k]
-            for j in range(k + 1, n):
-                A[i][j] -= A[k][j] * f
-            A[i][k] = 0
+def SimplexSolution(type, A, B, C, D):
+    """Calculates an optimal point for the linear programming model given by A*x <= B , Optimize z= C' * x
+    Parametry funkcji:
+    type -- type of optimization, it can be 'max' albo 'min'
+    A    -- A matrix of the model (numpy array)
+    B    -- B matrix of the model, column vector (numpy array)
+    C    -- C matrix of the model, column vector (numpy array)
+    D    -- column vector with the types of restrictions of the model (numpy array), 1 is <=, 0 is =, -1 is >=
+            for <= restrictions do nothing
+            for = add artificial variables
+            for >= restrictions add slack variables and artificial variables in the auxilliary objective
+            function (max --> -1 cost and 0 for other variables)
+    """
+    # m -- number of restrictions
+    # n -- number of variables
+    (m, n)= A.shape
+
+    identityMatrix = np.eye(m)
+    #Base = np.zeros(shape=(m))
+    basic_vars = []
+    count = n
+    z_aux = [] #Auxilliary objective function
+    a_vars= [] #Artificial variables
+    vals = B
+
+    for i in range(m):
+        #identityMatrix[i,i] = identityMatrix[i,i]*D[i]
+        if D[i]==1:
+            #if the constraint is in the form of <=
+            count = count + 1
+            basic_vars = basic_vars + [count-1]
+            a_vars = [a_vars, 0]
+
+            if type == 'min':
+                return
+            else:
+                return
+        elif D[i]==0:
+            #if the constraint is in the form of =
+            #a_vars.append(1)
+            count = count + 1
+            basic_vars = basic_vars + [count-1]
+            a_vars = [a_vars, 1]
+            if type == 'min':
+                return
+            else:
+                return
+        elif D[i]==-1:
+            #if the constraint is in the form of >=
+            #a_vars.append(1)
+
+            identityMatrix = repeatColumnNegative(identityMatrix, count + 1 - n)
+            vals = insertZeroToColumn(vals, count + 1 - n)
+            count = count + 2
+            basic_vars = basic_vars + [count-1]
+            a_vars = [a_vars, 0, 1]
+            if type == 'min':
+                return
+            else:
+                return
+        else:
+            print("Niewłaściwy przypadek")
+
+    X = np.vstack((np.zeros((n, 1)), vals))
+    A = np.hstack((A, identityMatrix))
+    tableau = np.vstack((np.hstack((-np.transpose(C), np.array([[0]]))), np.hstack((A, B))))
+    (rows, cols) = tableau.shape
+
+    print('\nTablica Simpleks\n')
+    print(tableau)
+    print('\nZmienne bazowe\n')
+    print(basic_vars)
+    print('\nOptymalny punkt\n')
+    print(X)
 
 if __name__ == "__main__":
-    A = Polynomial(6,4,5,0)
-    print(A)
-    exit(0)
+    #PRZYKLAD 5
+    (z, x) = SimplexSolution('min', np.array([[3, 5], [5, 2]]),
+                            np.array([[15], [10]]),
+                            np.array([[-5], [-3]]),
+                            np.array([[1], [1]]))
