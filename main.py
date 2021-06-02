@@ -61,6 +61,21 @@ def insertZeroToColumn(column, h):
     column = np.vstack((column[0:h-1, [0]], np.array([[0]]), column[h-1:k, [0]]))
     return column
 
+def minWithMask(x, mask):
+    min = 0
+    imin = 0
+    n = np.size(x)
+    for i in range(n):
+        if mask[i] == 1:
+            if min == 0:
+                min = x[i]
+                imin = i
+            else:
+                if min > x[i]:
+                    min = x[i]
+                    imin = i
+    return (min, imin)
+
 def SimplexSolution(type, A, B, C, D):
     """Calculates an optimal point for the linear programming model given by A*x <= B , Optimize z= C' * x
     Parametry funkcji:
@@ -85,6 +100,7 @@ def SimplexSolution(type, A, B, C, D):
     z_aux = [] #Auxilliary objective function
     a_vars= [] #Artificial variables
     vals = B
+    BFS = [] #Dopuszczalne rozwiązanie bazowe
 
     for i in range(m):
         #identityMatrix[i,i] = identityMatrix[i,i]*D[i]
@@ -136,6 +152,8 @@ def SimplexSolution(type, A, B, C, D):
     print('\nOptymalny punkt\n')
     print(X)
 
+    iteration = 0
+    
 if __name__ == "__main__":
     #PRZYKLAD 5
     (z, x) = SimplexSolution('min', np.array([[3, 5], [5, 2]]),
