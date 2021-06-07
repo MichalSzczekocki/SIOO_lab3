@@ -100,7 +100,8 @@ def SimplexSolution(type, A, B, C, D):
     z_aux = [] #Auxilliary objective function
     a_vars= [] #Artificial variables
     vals = B
-    BFS = [] #Dopuszczalne rozwiązanie bazowe
+    BFS = B #Dopuszczalne rozwiązanie bazowe, basic feasible solution
+    constraints = D #każdy kolejny element odpowiada równaniom ograniczającym, 1 to <=, 0 to =, -1 to >=
 
     for i in range(m):
         #identityMatrix[i,i] = identityMatrix[i,i]*D[i]
@@ -153,10 +154,79 @@ def SimplexSolution(type, A, B, C, D):
     print(X)
 
     iteration = 0
+    while True:
+
+        if type == 'min':
+            w = np.amax(st[0, 0:cols-1])
+            iw = np.argmax(st[0, 0:cols-1])
+        else:
+            w = np.amin(st[0, 0:cols-1])
+            iw = np.argmin(st[0, 0:cols-1])
+
+        if w <= 0 and type == 'min':
+            print('\nPunkt optimum\n')
+            break
+        elif w >= 0 and type == 'max':
+            print('\nPunkt optimum\n')
+            break
+        else:
+            iteration = iteration + 1
+
+            print('\n----------------- Iteracja {} -------------------\n'.format(iteration))
+
+            with warnings.catch_warnings():
+                warnings.simplefilter(" ")
+                T = st[1:rows, cols-1] / st[1: rows, iw]
+
+            R = np.logical_and(T != np.inf, T > 0)
+            (k, ik) = minWithMask(T, R)
+
+            cz = st[[0],:]
+
+            #element centralny
+            pivot = st[ik+1, iw]
+
+            #wiersz z elementem centralnym podzielony przez ten element
+            prow = st[ik+1,:] / pivot
+
+            st = st - st[:, [iw]] * prow
+
+            st[ik+1,:]= prow
+
+            # nowa zmienna bazowa
+            basic_vars[ik] = iw
+
+            print('\nZmienne Bazowe\n')
+            print(basic_vars)
+
+            basic = st[:, cols-1]
+            X = np.zeros((count, 1))
+            
+            t = np.size(basic_vars)
+
+            for k in range(t):
+                X[basic_vars[k]] = basic[k+1]
+
+            print('\nAktualny Optymalny Punkt')
+
+            C = -np.transpose(cz[[0], 0:count])
+
+            z_optimal = cz[0, cols-1] + np.matmul(np.transpose(C), X)
+            st[0, cols-1] = z_optimal
+
+            print('\nTablica Simpleks')
+            print(st)
+
+            print('\nAktualna wartość Z')
+            print(z_optimal)
+    tv = np.size(a_vars)
+    for i in range(tv):
+        if a_vars[i] == 1:
+            if X[n+1]>0:
+                print('\nRozwiązanie nieoptymane')
+                break
+    return (z_optimal[0, 0], X)
     
 if __name__ == "__main__":
     #PRZYKLAD 5
-    (z, x) = SimplexSolution('min', np.array([[3, 5], [5, 2]]),
-                            np.array([[15], [10]]),
-                            np.array([[-5], [-3]]),
-                            np.array([[1], [1]]))
+    SimplexSolution('min', np.array([[3, 5], [5, 2]]), np.array([[15], [10]]), np.array([[-5], [-3]]), np.array([[1], [1]]))
