@@ -49,22 +49,11 @@ class Polynomial:
             res = res * x + coeff
         return res
 
-def repeatColumnNegative(Matrix, h):
-    """Repeat column h multiplied by - 1"""
-    (r, c) = Matrix.shape
-    Matrix = np.hstack((Matrix[:, 0:h-1], -Matrix[:, [h-1]], Matrix[:, h-1:c]))
-    return Matrix
-
-def insertZeroToColumn(column, h):
-    """insert zero to column"""
-    k = np.size(column)
-    column = np.vstack((column[0:h-1, [0]], np.array([[0]]), column[h-1:k, [0]]))
-    return column
-
 def minWithMask(x, mask):
     min = 0
     imin = 0
     n = np.size(x)
+
     for i in range(n):
         if mask[i] == 1:
             if min == 0:
@@ -76,86 +65,114 @@ def minWithMask(x, mask):
                     imin = i
     return (min, imin)
 
+def repeatColumnNegative(Matrix, h):
+    (r, c) = Matrix.shape
+    Matrix = np.hstack((Matrix[:, 0:h-1], -Matrix[:, [h-1]], Matrix[:, h-1:c]))
+    return Matrix
+
+def insertZeroToColumn(column, h):
+    k = np.size(column)
+    column = np.vstack((column[0:h-1, [0]], np.array([[0]]), column[h-1:k, [0]]))
+    return column
+
 def SimplexSolution(type, A, B, C, D):
-    """Calculates an optimal point for the linear programming model given by A*x <= B , Optimize z= C' * x
+    """FUNKCJA TO ZNALEZNIENIA OPTYMALNEGO ROZWIĄZANIA ZADANIA A*x <= B , Optymalizacja Z= C' * X
     Parametry funkcji:
     type -- type of optimization, it can be 'max' albo 'min'
-    A    -- A matrix of the model (numpy array)
-    B    -- B matrix of the model, column vector (numpy array)
-    C    -- C matrix of the model, column vector (numpy array)
-    D    -- column vector with the types of restrictions of the model (numpy array), 1 is <=, 0 is =, -1 is >=
-            for <= restrictions do nothing
-            for = add artificial variables
-            for >= restrictions add slack variables and artificial variables in the auxilliary objective
-            function (max --> -1 cost and 0 for other variables)
+    A    -- Macierz A współczynników ograniczeń
+    B    -- Macierz B RHS ograniczeń modelu, wektor kolumnowy 
+    C    -- Macierz C współczynników funkcji celu
+    D    -- Wektor kolumnowy zawierający rodzaj znaków ograniczeń w zadaniu, 1 to <=, 0 to =, -1 to >=
     """
-    # m -- number of restrictions
-    # n -- number of variables
+    # m -- ilość ograniczeń
+    # n -- ilość zmiennych
     (m, n)= A.shape
 
-    identityMatrix = np.eye(m)
-    #Base = np.zeros(shape=(m))
     basic_vars = []
     count = n
-    z_aux = [] #Auxilliary objective function
-    a_vars= [] #Artificial variables
-    vals = B
-    BFS = B #Dopuszczalne rozwiązanie bazowe, basic feasible solution
-    constraints = D #każdy kolejny element odpowiada równaniom ograniczającym, 1 to <=, 0 to =, -1 to >=
+
+    # MACIERZ Z NOWYMI ZMIENNYMI
+    identityMatrix = np.eye(m)
+
+    # WARTOŚCI NOWYCH ZMIENNYCH
+    #Dopuszczalne rozwiązanie bazowe, basic feasible solution
+    P = B
+
+    # WSKAŹNIK POZYCJI ZMIENNYCH SZTUCZNYCH
+    artificial= []
+
+    #constraints = D #każdy kolejny element odpowiada równaniom ograniczającym, 1 to <=, 0 to =, -1 to >=
 
     for i in range(m):
-        #identityMatrix[i,i] = identityMatrix[i,i]*D[i]
-        if D[i]==1:
-            #if the constraint is in the form of <=
-            count = count + 1
-            basic_vars = basic_vars + [count-1]
-            a_vars = [a_vars, 0]
+        if D[i] == 1:
 
-            if type == 'min':
-                return
-            else:
-                return
-        elif D[i]==0:
-            #if the constraint is in the form of =
-            #a_vars.append(1)
+            C = np.vstack((C, [[0]]))
             count = count + 1
             basic_vars = basic_vars + [count-1]
-            a_vars = [a_vars, 1]
+            artificial = [artificial, 0]
+
+        elif D[i] == 0:
             if type == 'min':
-                return
+                C = np.vstack((C, [[100]]))
             else:
-                return
-        elif D[i]==-1:
-            #if the constraint is in the form of >=
-            #a_vars.append(1)
+                C = np.vstack((C, [[-100]]))
+
+            count = count + 1
+            basic_vars = basic_vars + [count-1]
+
+            artificial = [artificial, 1]
+        elif D[i] == -1:
+            # DODANIE ZMIENNYCH LUZU I SZCZTUCZNYCH
+            if type == 'min':
+                C = np.vstack((C, [[0], [100]]))
+            else:
+                C = np.vstack((C, [[0], [-100]]))
 
             identityMatrix = repeatColumnNegative(identityMatrix, count + 1 - n)
-            vals = insertZeroToColumn(vals, count + 1 - n)
+            P = insertZeroToColumn(P, count + 1 - n)
+
+            # regist the artificial variable as basic variable
             count = count + 2
             basic_vars = basic_vars + [count-1]
-            a_vars = [a_vars, 0, 1]
-            if type == 'min':
-                return
-            else:
-                return
-        else:
-            print("Niewłaściwy przypadek")
 
-    X = np.vstack((np.zeros((n, 1)), vals))
+            artificial = [artificial, 0, 1]
+        else:
+            print("Niewłaściwy przypadek dla ograniczeń")
+
+    X = np.vstack((np.zeros((n, 1)), P))
+
+    # DODANIE NOWEJ ZMIENNEJ 
     A = np.hstack((A, identityMatrix))
-    tableau = np.vstack((np.hstack((-np.transpose(C), np.array([[0]]))), np.hstack((A, B))))
-    (rows, cols) = tableau.shape
+
+    # MACIERZ SIMPLEKS
+    st = np.vstack((np.hstack((-np.transpose(C), np.array([[0]]))), np.hstack((A, B))))
+    (rows, cols) = st.shape
 
     print('\nTablica Simpleks\n')
-    print(tableau)
+    print(st)
     print('\nZmienne bazowe\n')
     print(basic_vars)
     print('\nOptymalny punkt\n')
     print(X)
 
+    # SPRAWDZENIE Z != 0 (GDY SĄ ZMIENNE BAZOWE)
+    z_optimal = np.matmul(np.transpose(C), X)
+
+    print('\nAktualna wartość Z funkcji celu\n\n', z_optimal)
+
+    if z_optimal != 0:
+        for i in range(m):
+            if D[i] == 0 or D[i] == -1:
+                if type == 'min':
+                    st[0,:]= st[0,:] + 100 * st[1+i,:]
+                else:
+                    st[0,:]= st[0,:] - 100 * st[1+i,:]
+
+        print('\nSkorygowana tablica simpleks\n')
+        print(st)
+
     iteration = 0
     while True:
-
         if type == 'min':
             w = np.amax(st[0, 0:cols-1])
             iw = np.argmax(st[0, 0:cols-1])
@@ -164,10 +181,10 @@ def SimplexSolution(type, A, B, C, D):
             iw = np.argmin(st[0, 0:cols-1])
 
         if w <= 0 and type == 'min':
-            print('\nPunkt optimum\n')
+            print('\nGlobalny punkt optimum\n')
             break
         elif w >= 0 and type == 'max':
-            print('\nPunkt optimum\n')
+            print('\nGlobalny punkt optimum\n')
             break
         else:
             iteration = iteration + 1
@@ -175,58 +192,64 @@ def SimplexSolution(type, A, B, C, D):
             print('\n----------------- Iteracja {} -------------------\n'.format(iteration))
 
             with warnings.catch_warnings():
-                warnings.simplefilter(" ")
+                warnings.simplefilter("ignore")
                 T = st[1:rows, cols-1] / st[1: rows, iw]
 
             R = np.logical_and(T != np.inf, T > 0)
             (k, ik) = minWithMask(T, R)
 
+            # AKTUALNY ELEMENT Z WIERSZA
             cz = st[[0],:]
 
-            #element centralny
+            # ELEMENT CENTRALNY
             pivot = st[ik+1, iw]
 
-            #wiersz z elementem centralnym podzielony przez ten element
+            # ELEMENT CENTRALNY PODZIELONY PRZEZ SAMEGO SIEBIE
             prow = st[ik+1,:] / pivot
 
             st = st - st[:, [iw]] * prow
-
             st[ik+1,:]= prow
 
-            # nowa zmienna bazowa
+            # NOWA ZMIENNA BAZOWA
             basic_vars[ik] = iw
 
-            print('\nZmienne Bazowe\n')
+            print('\nZmienne bazowe\n')
             print(basic_vars)
 
             basic = st[:, cols-1]
             X = np.zeros((count, 1))
-            
             t = np.size(basic_vars)
 
             for k in range(t):
                 X[basic_vars[k]] = basic[k+1]
 
-            print('\nAktualny Optymalny Punkt')
-
+            print('\nOptymalny punkt\n')
+            print(X)
             C = -np.transpose(cz[[0], 0:count])
-
             z_optimal = cz[0, cols-1] + np.matmul(np.transpose(C), X)
             st[0, cols-1] = z_optimal
 
-            print('\nTablica Simpleks')
+            print('\nTablica simpleks\n\n')
             print(st)
 
-            print('\nAktualna wartość Z')
+            print('\nAktualna wartość Z funkcji celu\n\n')
             print(z_optimal)
-    tv = np.size(a_vars)
+
+    # SPRAWDZENIE CZY KTÓRAŚ ZE ZMIENNYCH BAZOWYCH JEST DODATNIA
+    tv = np.size(artificial)
     for i in range(tv):
-        if a_vars[i] == 1:
-            if X[n+1]>0:
-                print('\nRozwiązanie nieoptymane')
+        if artificial[i] == 1:
+            if X[n + i] > 0:
+                print('\nRozwiązanie nieoptymane\n')
                 break
+
     return (z_optimal[0, 0], X)
-    
-if __name__ == "__main__":
+
+if __name__ == '__main__':
+    np.set_printoptions(suppress=True)
+    #POKOLEI ODKOMENTOWYWAĆ PRZYKŁADY
+    #PRZYKŁAD 2
+    (z, x) = SimplexSolution('min', np.array([[1, 0, 0], [0, 1, 0], [0, 0, 5]]), np.array([[20], [6], [15]]), np.array([[5], [4], [6]]), np.array([[0], [0], [0]]))
     #PRZYKLAD 5
-    SimplexSolution('min', np.array([[3, 5], [5, 2]]), np.array([[15], [10]]), np.array([[-5], [-3]]), np.array([[1], [1]]))
+    #(z, x) = SimplexSolution('min', np.array([[3, 5], [5, 2]]), np.array([[15], [10]]), np.array([[-5], [-3]]), np.array([[1], [1]]))
+    
